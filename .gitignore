@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.so
+*.zip
+*.pkl
+*.npz
+*.log
+saved/
+results/
+.DS_Store
+.ipynb_checkpoints/

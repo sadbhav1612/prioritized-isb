@@ -1,0 +1,138 @@
+quadrotor_env:
+  sim_dt: 0.02
+  max_t: 60.0
+
+quadrotor_dynamics:
+  # Paper-faithful AlphaPilot/Split-S quadrotor (Sec IV-A).
+  mass: 0.73
+  arm_l: 0.17
+  # Inertia override (paper diag(0.003, 0.003, 0.005) kg.m^2). Without this,
+  # the default formula gives ~2.6x too much rotational inertia for a 0.73kg
+  # racing drone.
+  J: [0.003, 0.003, 0.005]
+  motor_omega_min: 150.0
+  # Paper Sec IV-A: AlphaPilot and AirSim tracks use TWR = 6.4 (Split-S
+  # uses 3.3 for real-world deployment). For weight = 0.73 kg * 9.81 =
+  # 7.16 N and TWR 6.4, per-rotor t_max = 11.45 N. With the thrust_map
+  # below (1.33e-6*om^2 + 3.836e-3*om - 1.769), solving f=11.45 gives
+  # om ~ 2025. Drop back to 1380 when retargeting the Split-S drone.
+  motor_omega_max: 2025.0
+  motor_tau: 0.01
+  thrust_map: [1.3298253500372892e-06, 0.0038360810526746033, -1.7689986848125325]
+  kappa: 0.01
+  # Slightly tighter than default to discourage runaway angular velocity.
+  omega_max: [6.0, 6.0, 3.0]
+
+rl:
+  # Strict paper Eq 4 reward:
+  #   r(t) = r_p(t) + a * r_s(t) - b * ||omega||^2 + (r_T if collision else 0)
+  # All shaping terms (survival, gate-pass bonus, pos/vel tracking) are
+  # disabled. World-box-exit reward penalty is also removed.
+  safety_coeff: 0.1
+  # Widened so the safety pressure (Eq 3) is felt earlier on approach. With
+  # dmax=2.5 the policy could be a metre off-axis at 5 m out and still pay
+  # zero — too late to correct for a 30 m/s fly-by.
+  dmax: 3.0
+  # Body-rate regularizer b * ||omega||^2 (paper Eq 4). Disabled because at
+  # 5e-4 the per-step penalty (~-0.05) cancels the progress reward and pushes
+  # the fresh policy into a "tip over and die fast" local optimum (episodes
+  # collapsed to 0.64s). The paper notes this term is "added at an initial
+  # training stage" but in practice it should be annealed in once the policy
+  # can already stabilize, not active from step 0.
+  omega_coeff: 0.0
+  collision_penalty_clip: 20.0
+  # Bootstrap shaping signals (paper Eq 4 only, plus shaping ON for
+  # trainability). Strict paper reward + PPO defaults could not bootstrap
+  # past 0 gates in 7M steps. These three knobs are added back, mirroring
+  # the working old QuadrotorEnv:
+  #   - survival_bonus: per-step +0.05 so dying fast is worse than flying
+  #   - gate_pass_bonus: +5 the moment a gate window is crossed
+  #   - pos/vel tracking: dense reward toward "1m past gate" + approach vel
+  # Once the policy can pass gates reliably, anneal these to 0 to recover
+  # paper-strict Eq 4 reward.
+  # Dropped 5x from 0.05 -> 0.01. At 0.05 the policy converged to "hover
+  # near the active gate for the full 30s max_t and collect survival +
+  # alignment without ever passing through." A 240-step orbit earned
+  # ~12 of just survival reward; the alignment-during-orbit added another
+  # ~20. We need passing gates to be net-positive over hovering. The new
+  # math: 30s orbit gets 0.01*1500 = 15 survival (was 75 over 1500 steps),
+  # one G1 pass gets 50 + ~5 progress + dead time = ~55. Pass is now 4x
+  # more rewarding than hovering, instead of 1x.
+  survival_bonus: 0.01
+  # Bumped 2x to make the discrete "passed-window" event dominate the
+  # continuous shaping rewards. Especially important for chained gates
+  # where the next gate is far away and intermediate progress is small.
+  gate_pass_bonus: 150.0
+  # ANNEAL phase — policy now reliably passes 1 gate (avg 1.12/ep at 20M
+  # steps from scratch). Dense pos/vel shaping is no longer needed for
+  # bootstrap and is starting to oppose post-gate maneuvers (specifically
+  # the G4->G5 Split-S vertical drop, where "1m past gate along normal"
+  # is geometrically wrong). Drop the dense terms 4x and reduce the
+  # offset so the alignment reward (which is approach-velocity gated)
+  # carries the shaping signal.
+  pos_track_coeff: 2.5e-4
+  vel_track_coeff: 5.0e-5
+  approach_speed: 2.0
+  target_offset_past_gate: 0.3
+  # Frontal-approach shaping. align_coeff * max(0, cos α) * proximity, where
+  # proximity falls off with 1/(1+(d/align_dist)^2). align_dist 6m so the
+  # signal carries across a 10-12m gate gap (proximity ~0.20 at 12m).
+  align_coeff: 0.3
+  align_dist: 6.0
+  num_obs_gates: 2
+  # Paper Sec III-C.2 phase 2 init. Probability of resampling reset
+  # state from the per-env past-trajectory buffer of recent mid-flight
+  # states. 0.0 = pure phase 1 (start_pos + hover-segment init). The
+  # Python training loop overrides this each PPO update so the value
+  # here is only the loadParam default for non-training entry points.
+  past_traj_prob: 0.0
+  past_traj_buffer_size: 5000
+  # Only capture states when current_gate_idx >= this. With 1, the
+  # buffer biases toward "post-gate-1 and beyond" — exactly the states
+  # the existing init can't reach.
+  past_traj_min_gate: 1
+  # Prioritized Initial State Buffer (P-ISB), Milestone 1. Exponent on the
+  # per-state priority when sampling a reset state from the past-trajectory
+  # buffer: P(state) ∝ (priority + eps)^prioritize_alpha.
+  #   0.0 = uniform sampling == Random-Buffer baseline (default)
+  #   0.4-1.0 = increasingly prioritized toward high-"surprise" states
+  # MVP priority is |reward - EMA(reward)| normalized to O(1). Sweep this for
+  # the P-ISB vs Random-Buffer ablation.
+  prioritize_alpha: 0.0
+  # Loop-maneuver reward shaping. Rewards the policy for flying a full 360°
+  # vertical loop near the designated gate (0-indexed) before continuing.
+  #   loop_gate_idx:        which gate to loop at; -1 disables the term.
+  #   loop_reward:          one-off bonus the moment a full loop completes.
+  #   loop_progress_coeff:  dense reward per radian of net pitch rotation
+  #                         toward 2π (capped at one loop; signed so spinning
+  #                         back and forth cancels and can't be farmed).
+  #   loop_radius:          only accumulate rotation within this distance of
+  #                         the loop gate; leaving the zone resets it.
+  # For LoopTrack.yaml, gate index 2 (Gate3) is the loop gate. A completed
+  # loop is worth ~loop_progress_coeff*2π + loop_reward = ~50 + 100 = 150,
+  # comparable to one gate pass — strong enough to learn, tunable here.
+  # Loop disabled for the SideBySide track (set to a gate index 0..6 to
+  # re-enable an aerobatic loop at that gate).
+  loop_gate_idx: -1
+  loop_reward: 100.0
+  loop_progress_coeff: 8.0
+  loop_radius: 5.0
+
+track:
+  yaml_path: flightlib/configs/Ellipse.yaml
+  circular: true
+  max_laps: 8
+  # Render-only correction applied to the gate quaternion when publishing
+  # to Unity (does NOT affect training reward / gate-pass detection). The
+  # env's gate_normal is local +x of the gate frame, but the rpg_gate prefab
+  # window opens along a different local axis, so without this offset the
+  # drone visually approaches the side of the gate. Try +90° first; if the
+  # gate still looks side-on try -90° or 180°. Format [w, x, y, z].
+  #   identity (no offset):                  [1.0, 0, 0, 0.0]
+  #   +90° yaw  (most likely fix):           [0.7071068, 0, 0, 0.7071068]
+  #   -90° yaw:                              [0.7071068, 0, 0, -0.7071068]
+  #   180° yaw:                              [0.0, 0, 0, 1.0]
+  unity_gate_offset: [0.7071068, 0.0, 0.0, 0.7071068]
+
+world:
+  box: [-50.0, 50.0, -50.0, 50.0, -1.0, 30.0]

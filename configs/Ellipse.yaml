@@ -1,0 +1,57 @@
+# Ellipse racing track.
+#
+# Curve:   x(t) = a cos(t),  y(t) = b sin(t)
+# Scale:   a = 12 m (semi-major, x), b = 8 m (semi-minor, y), altitude = 2.5 m (flat).
+#
+# 8 gates sampled at t = k*pi/4, k = 0..7, traversed counter-clockwise.
+# Each gate's rotation is the parametric tangent at its position
+# (yaw = atan2(dy/dt, dx/dt), dx/dt = -a sin t, dy/dt = b cos t), so the
+# gate local +x == flight direction at the gate. Matches the AlphaPilot /
+# Lemniscate convention; renders correctly with the existing
+# unity_gate_offset = [0.7071, 0, 0, 0.7071].
+
+goal_pos: [12.0, 0.0, 2.5]
+render_offset: [50.0, 50.0, 50.0]
+start_pos: [12.0, -3.0, 2.5]
+gates:
+  Gate1:
+    position: [12.0, 0.0, 2.5]
+    rotation: [0.7071, 0, 0, 0.7071]       # yaw +90.0°
+    scale: [0.604, 0.604, 0.604]
+    uncertainty: [0.0, 0.0, 0.0, 0.0]
+  Gate2:
+    position: [8.485, 5.657, 2.5]
+    rotation: [0.2890, 0, 0, 0.9573]       # yaw +146.3°
+    scale: [0.604, 0.604, 0.604]
+    uncertainty: [0.0, 0.0, 0.0, 0.0]
+  Gate3:
+    position: [0.0, 8.0, 2.5]
+    rotation: [0.0, 0, 0, 1.0]             # yaw +180.0°
+    scale: [0.604, 0.604, 0.604]
+    uncertainty: [0.0, 0.0, 0.0, 0.0]
+  Gate4:
+    position: [-8.485, 5.657, 2.5]
+    rotation: [0.2890, 0, 0, -0.9573]      # yaw -146.3°
+    scale: [0.604, 0.604, 0.604]
+    uncertainty: [0.0, 0.0, 0.0, 0.0]
+  Gate5:
+    position: [-12.0, 0.0, 2.5]
+    rotation: [0.7071, 0, 0, -0.7071]      # yaw -90.0°
+    scale: [0.604, 0.604, 0.604]
+    uncertainty: [0.0, 0.0, 0.0, 0.0]
+  Gate6:
+    position: [-8.485, -5.657, 2.5]
+    rotation: [0.9571, 0, 0, -0.2897]      # yaw -33.7°
+    scale: [0.604, 0.604, 0.604]
+    uncertainty: [0.0, 0.0, 0.0, 0.0]
+  Gate7:
+    position: [0.0, -8.0, 2.5]
+    rotation: [1.0, 0, 0, 0.0]             # yaw 0.0°
+    scale: [0.604, 0.604, 0.604]
+    uncertainty: [0.0, 0.0, 0.0, 0.0]
+  Gate8:
+    position: [8.485, -5.657, 2.5]
+    rotation: [0.9571, 0, 0, 0.2897]       # yaw +33.7°
+    scale: [0.604, 0.604, 0.604]
+    uncertainty: [0.0, 0.0, 0.0, 0.0]
+N: 8

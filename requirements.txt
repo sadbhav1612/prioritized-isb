@@ -1,0 +1,7 @@
+numpy>=1.18,<1.20
+scipy>=1.4,<1.6
+matplotlib>=3.3
+tensorflow==1.15.*
+stable-baselines==2.10.*
+pyyaml
+ruamel.yaml
