@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0
+# Port of the projection network and loss of cl_initial_buffer
+# (https://github.com/uzh-rpg/cl_initial_buffer), licensed under the GNU GPL
+# v3.0; this file is distributed under the same licence (LICENSE-GPL-3.0).
 """Faithful port of the published Contrastive Initial State Buffer.
 
 Ported from the reference `ProjectionBuffer` / `SoftNearestNeighborLoss`

@@ -188,4 +188,13 @@ reference.
 
 ## License
 
-MIT, see `LICENSE`.
+P-ISB's own code is released under the MIT licence (`LICENSE`). Two parts are
+covered by the GNU GPL v3.0 instead (`LICENSE-GPL-3.0`), because they derive
+from or use the reference CL-Buffer implementation
+([cl_initial_buffer](https://github.com/uzh-rpg/cl_initial_buffer), GPL-3.0):
+
+- `rpg_baselines/pisb_ral/ref_cl.py`, a port of its projection network and loss;
+- `legged/pisb_legged/`, which calls its `initial_buffer` library.
+
+The racing scripts build on Flightmare (MIT), and the locomotion code
+subclasses legged_gym and rsl_rl (BSD 3-Clause); see `NOTICE`.
