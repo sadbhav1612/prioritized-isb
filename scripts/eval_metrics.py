@@ -26,6 +26,7 @@ sys.path.insert(0, FLIGHTRL)
 os.environ.setdefault("FLIGHTMARE_PATH", FLIGHTMARE)
 
 from stable_baselines.common.vec_env import VecNormalize
+from stable_baselines.common.misc_util import set_global_seeds
 
 from flightgym import QuadrotorRacingEnv_v0
 from rpg_baselines.envs.racing_env_wrapper import RacingEnvVec
@@ -54,6 +55,13 @@ def parse_args():
                    help="Reset every rollout deterministically from the START "
                         "LINE (clean success rate), instead of the training "
                         "70%% mid-track random init.")
+    p.add_argument("--seed", type=int, default=None,
+                   help="Seed python/numpy/tensorflow and the env's C++ RNG "
+                        "before loading the policy, so that --stochastic runs "
+                        "reproduce bit-for-bit. Default (unset): every "
+                        "invocation draws fresh action noise, so re-scoring "
+                        "the same checkpoint gives a different 50-rollout "
+                        "sample each time (expected Monte-Carlo variance).")
     return p.parse_args()
 
 
@@ -86,8 +94,16 @@ def main():
     args = parse_args()
     print(f"Model: {args.weight}")
 
+    if args.seed is not None:
+        # Must happen before PPO2.load() builds the TF graph: the Gaussian
+        # policy's sample() op bakes in its RNG seed at graph-construction
+        # time, so seeding afterwards would not affect it.
+        set_global_seeds(args.seed)
+
     racing_env = make_env(args.num_envs, args.num_threads)
     racing_env._from_start = bool(args.from_start)  # clean start-line resets
+    if args.seed is not None:
+        racing_env.wrapper.setSeed(args.seed)
 
     if args.track is not None:
         track_path = args.track
@@ -176,7 +192,8 @@ def main():
 
     print()
     print("=" * 60)
-    print(f"Rollouts : {len(g)}  (stochastic={args.stochastic})")
+    print(f"Rollouts : {len(g)}  (stochastic={args.stochastic}, "
+          f"seed={args.seed})")
     print(f"Gates / ep  mean={g.mean():.2f}   max={g.max()}   "
           f"min={g.min()}   std={g.std():.2f}")
     # Success rate = fraction of rollouts reaching the success threshold
@@ -217,6 +234,7 @@ def main():
         metrics = {
             "track": track_name, "n_gates": int(n_gates),
             "success_gates": int(succ_gates), "rollouts": int(len(g)),
+            "stochastic": bool(args.stochastic), "seed": args.seed,
             "success_rate": float(success_rate),
             "gates_mean": float(g.mean()), "gates_max": float(g.max()),
             "gates_std": float(g.std()),
@@ -228,6 +246,9 @@ def main():
             "speed_median": float(np.median(s)),
             "speed_p95": float(np.percentile(s, 95)),
             "ep_time_s": float(L.mean() * 0.02),
+            # per-rollout gates reached: lets any downstream analysis compute
+            # SR at an arbitrary gate/lap threshold as (gates >= thr).mean().
+            "gates_per_rollout": [int(x) for x in g],
         }
         with open(args.json_out, "w") as f:
             json.dump(metrics, f, indent=2)

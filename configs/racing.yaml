@@ -21,7 +21,10 @@ quadrotor_dynamics:
   thrust_map: [1.3298253500372892e-06, 0.0038360810526746033, -1.7689986848125325]
   kappa: 0.01
   # Slightly tighter than default to discourage runaway angular velocity.
-  omega_max: [6.0, 6.0, 3.0]
+  # NOTE: only clamps CTBR commanded body rates (single-rotor is unaffected).
+  # Single-rotor SplitS uses body rates of mean~15, p95~40 rad/s, so a 6 rad/s
+  # CTBR cap prevents the split-S flip -> raised to racing range (~20 rad/s).
+  omega_max: [20.0, 20.0, 10.0]
 
 rl:
   # Strict paper Eq 4 reward:
@@ -40,6 +43,10 @@ rl:
   # training stage" but in practice it should be annealed in once the policy
   # can already stabilize, not active from step 0.
   omega_coeff: 0.0
+  # CTBR action mode: action = [collective_thrust, wx, wy, wz] (paper's setup)
+  # instead of [f1..f4]. Default false keeps the working single-rotor path.
+  ctbr: false
+  ctbr_omega_max: 20.0
   collision_penalty_clip: 20.0
   # Bootstrap shaping signals (paper Eq 4 only, plus shaping ON for
   # trainability). Strict paper reward + PPO defaults could not bootstrap
@@ -119,9 +126,9 @@ rl:
   loop_radius: 5.0
 
 track:
-  yaml_path: flightlib/configs/Ellipse.yaml
+  yaml_path: flightlib/configs/SplitS.yaml
   circular: true
-  max_laps: 8
+  max_laps: 20
   # Render-only correction applied to the gate quaternion when publishing
   # to Unity (does NOT affect training reward / gate-pass detection). The
   # env's gate_normal is local +x of the gate frame, but the rpg_gate prefab
