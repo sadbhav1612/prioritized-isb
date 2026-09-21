@@ -12,6 +12,13 @@ no network and reuses the advantage PPO already computes. Its corners are
 plain PPO (rho = 0), a clustering-only buffer (alpha = 0) and priority-only
 sampling (K = 1).
 
+![The P-ISB training loop](docs/pisb_overview.png)
+
+*The P-ISB training loop. Visited states enter the buffer with priority
+|A_t| from the critic; the buffer is clustered on the 26-D observation, a
+reset pool of full 17-D simulator states is drawn by priority within
+clusters, and the racing environment resets from that pool.*
+
 ## Contents
 
 ```
@@ -28,6 +35,7 @@ sampling (K = 1).
 │   ├── lap_times.py            # lap times (mean action)
 │   └── signflip.py             # the paired sign-flip and best-lap permutation tests
 ├── configs/                    # racing env config and the three tracks
+├── docs/pisb_overview.png      # overview figure
 ├── legged/pisb_legged/         # locomotion experiments (legged_gym / rsl_rl)
 └── INTEGRATION.md              # the hooks P-ISB needs from a PPO runner and an env
 ```
