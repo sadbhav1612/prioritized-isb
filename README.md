@@ -1,8 +1,9 @@
 # Prioritized Initial-State Buffer (P-ISB)
 
-Code accompanying *Prioritized Initial-State Buffers for Agile Drone Racing*
-(under double-anonymous review). This version matches the revised manuscript;
-the first release is kept in the repository history.
+Code accompanying *Prioritized Initial-State Buffers for Agile Drone Racing*,
+accepted for publication in IEEE Robotics and Automation Letters (RA-L), 2026.
+This version matches the final manuscript; the first release is kept in the
+repository history.
 
 P-ISB decides **where** an on-policy agent is reset from. Each visited state is
 scored by the magnitude of the critic's advantage, |A|, the visited states are
@@ -185,6 +186,19 @@ Every policy is scored by validation reward from the centre of all 200 terrain
 patches for 2000 steps, not by training reward, which each method collects
 under its own reset distribution. Locomotion uses rho = 0.8, as in the
 reference.
+
+## Citation
+
+If you use this code, please cite:
+
+```bibtex
+@article{singh2026pisb,
+  title   = {Prioritized Initial-State Buffers for Agile Drone Racing},
+  author  = {Singh, Sadbhav and S. K., Surya Prakash and Shukla, Amit},
+  journal = {IEEE Robotics and Automation Letters},
+  year    = {2026}
+}
+```
 
 ## License
 
